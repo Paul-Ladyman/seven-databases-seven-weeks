@@ -1,0 +1,34 @@
+Sub Selects
+==========
+
+Rather than setting a value explicitly, sub-SELECT it using another query.
+
+INSERT INTO events (title, starts, ends, venue_id)
+	VALUES ('Lunch', '2012-02-16 12:30:00', '2012-02-16 13:30:00', (
+		SELECT venue_id
+		FROM venues
+		WHERE name = 'My Place'
+	)
+);
+
+Aggregate Functions
+===================
+
+Groups results from several rows by some common criteria
+
+SELECT count(title)
+FROM events
+WHERE title LIKE '%er%';
+
+- Aggregate function count
+- LIKE search function. % is a wildcard
+
+SELECT min(starts), max(ends)
+FROM events e JOIN venues v
+	ON e.venue_id = v.venue_id
+WHERE v.name = 'My Place';
+
+- min and max aggregate functions
+
+Grouping
+========

@@ -1,0 +1,136 @@
+Create Tables
+=============
+
+CREATE TABLE countries (
+  country_code char(2) PRIMARY KEY,
+  country_name text UNIQUE
+);
+
+- Define columns to create table
+- Column definitions made of <column-name>, <data-type>, <contraints>
+
+CREATE TABLE cities (
+	name text NOT NULL,
+	postal_code varchar(9) CHECK (postal_code <> ''),
+	country_code char(2) REFERENCES countries,
+	PRIMARY KEY (country_code, postal_code)
+);
+
+- REFERENCES constraint requires the value to exist in another table's primary key column
+- PRIMARY KEYs can be compound
+
+CREATE TABLE venues (
+	venue_id SERIAL PRIMARY KEY,
+	name varchar(255),
+	postal_code varchar(9),
+	country_code char(2),
+	FOREIGN KEY (country_code, postal_code)
+		REFERENCES cities(country_code, postal_code) MATCH FULL
+);
+
+- SERIAL specifies an automatically incrementing integer
+- FOREIGN KEY used to make REFERENCES to another table's compound PRIMARY KEY
+
+CREATE TABLE events (
+	event_id SERIAL PRIMARY KEY,
+	title text,
+	starts timestamp,
+	ends timestamp,
+	venue_id integer REFERENCES venues
+);
+
+Insert Values
+=============
+
+INSERT INTO countries
+VALUES ('us', 'United States'), ('uk', 'United Kingdom'), ('fr', 'France');
+
+INSERT INTO venues (name, postal_code, country_code)
+VALUES ('Voodoo Donuts', '97205', 'us') RETURNING venue_id;
+
+- Return columns after insertion
+- When inserting into Tables that use a SERIAL column must specify column names explicitly
+
+INSERT INTO events (title, starts, ends, venue_id)
+VALUES ('Band Practice', '2012-02-15 17:30:00', '2012-02-15 18:30:00', 2);
+
+INSERT INTO events (title, starts, ends)
+VALUES ('Gig', '2012-02-16 17:30:00', '2012-02-16 18:30:00');
+
+- Can't mix VALUES tuples of different lengths
+
+Select Values
+============
+
+SELECT *
+FROM countries;
+
+SELECT countries.*
+FROM countries;
+
+Update Values
+============
+
+UPDATE cities
+SET postal_code = '456'
+WHERE name = 'New York';
+
+Delete Values
+============
+
+DELETE FROM countries
+WHERE country_code = 'mx';
+
+Inner Joins
+==========
+
+Returns rows only if the column values match in both tables
+
+SELECT cities.*, country_name
+FROM cities INNER JOIN countries
+ON cities.country_code = countries.country_code;
+
+- INNER in INNER JOIN optional
+
+SELECT v.venue_id, v.name, c.name
+FROM venues v JOIN cities c
+ON v.postal_code=c.postal_code AND v.country_code=c.country_code;
+
+- Compound JOIN with a table with a compound PRIMARY KEY (cities.)
+- Table name aliases
+
+Outer Joins
+===========
+
+SELECT e.title, v.name
+FROM events e LEFT JOIN venues v
+ON e.venue_id = v.venue_id;
+
+- Retrieve all column values for LEFT table whether or not they exist in RIGHT table
+
+SELECT e.title, v.name
+FROM events e RIGHT JOIN venues v
+ON e.venue_id = v.venue_id;
+
+- Retrieve all column values for RIGHT table whether or not they exist in LEFT table
+
+SELECT e.title, v.name
+FROM events e FULL JOIN venues v
+ON e.venue_id = v.venue_id;
+
+- Retrieve all column values from all tables
+
+Indexing
+========
+
+Avoid reading all table values from disk when performing selects.
+
+CREATE INDEX events_title
+ON events USING hash (title);
+
+- hash index stores hashtable/map structure where the key is the hashed column value and the value is the full row
+
+CREATE INDEX events_starts
+ON events USING btree(starts);
+
+- btree index using a balanced tree structure that can efficiently match on ranged queries

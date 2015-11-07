@@ -139,3 +139,37 @@ SET color = '{"pink", "white"}'
 WHERE name = 'Valentines Day';
 
 - can now UPDATE on holidays
+
+Pivot Tables
+============
+
+SELECT extract(year from starts) as year,
+	extract(month from starts) as month,
+	count(*)
+FROM events
+GROUP BY year, month
+ORDER BY year, month
+
+- Extract function can return subfield from date or timestamp
+- Going to use pivot the row values in the month column into columns themselves
+
+CREATE TEMPORARY TABLE month_count(month INT);
+INSERT INTO month_count VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11), (12);
+
+- need to create a table to pivot against
+
+SELECT * FROM crosstab(
+	'SELECT extract(year from starts) as year,
+		extract(month from starts) as month,
+		count(*)
+	FROM events
+	GROUP BY year, month
+	ORDER BY year, month',
+	'SELECT * FROM month_count'
+) AS (
+	year int,
+	jan int, feb int, mar int, apr int, may int, jun int, jul int, aug int, sept int, oct int, nov int, dec int
+) ORDER BY year;
+
+- Use crosstab function to create pivot table
+- Have to specify column labels of pivot table using AS

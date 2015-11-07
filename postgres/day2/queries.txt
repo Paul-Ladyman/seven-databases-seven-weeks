@@ -31,4 +31,111 @@ WHERE v.name = 'My Place';
 - min and max aggregate functions
 
 Grouping
-========
+--------
+
+Rather than performing an aggregate function on some column value a row at a time, use GROUP BY to group the rows and perform the function once on the group.
+
+SELECT venue_id, count(*)
+FROM events
+GROUP BY venue_id
+
+SELECT venue_id
+FROM events
+GROUP BY venue_id
+HAVING count(*) >= 2 AND venue_id IS NOT NULL;
+
+- Use HAVING with GROUP BY to Filter by aggregate functions (WHERE cannot do this)
+
+SELECT venue_id
+FROM events
+GROUP BY venue_id
+
+- GROUP BY can also be used without aggregate functions to select unique values in a column.
+
+SELECT DISTINCT venue_id
+FROM events
+
+- This is often expressed using the DISTINCT shorthand instead
+
+Windowing
+---------
+
+GROUP BY collapses groups into a single row before performing an aggregate function so its not possible to request extra fields from the original row, these are lost.
+
+Windowing does not first collapse the group, so can be used when extra information is required. This feature however is not as common as GROUP BY in SQL stores.
+
+SELECT title, venue_id, count(*)
+OVER (PARTITION BY venue_id)
+FROM events
+
+- Can do simple filters using WHERE but does not seem to support aggregate filters with HAVING
+
+Transactions
+============
+
+Ensures ACID compliance. Useful when modifying two tables that must remain in sync.
+
+Individual PostGreSQL commands are implicitly transactional.
+
+BEGIN TRANSACTION;
+	DELETE FROM events;
+ROLLBACK;
+SELECT * FROM events;
+
+Views
+=====
+
+Aliased queries that can be used in other queries.
+
+CREATE VIEW holidays AS
+	SELECT event_id AS holiday_id, title AS name, starts AS date
+	FROM events
+	WHERE title LIKE '%Day%' AND venue_id IS NULL;
+
+- Notice adding aliases to events columns
+
+SELECT name, to_char(date, 'Month DD, YYYY') AS date
+FROM holidays
+WHERE date <= '2012-04-01';
+
+- VIEWs can be searched in other queries like a regular table using FROM.
+
+ALTER TABLE events
+ADD color text ARRAY;
+
+CREATE OR REPLACE VIEW holidays AS
+	SELECT event_id AS holiday_id, title AS name, starts AS date, color
+	FROM events
+	WHERE title LIKE '%Day%' AND venue_id IS NULL;
+
+- Use CREATE OR REPLACE VIEW to update a VIEW. Unfortunately has to rewrite entire thing.
+
+Cannot use VIEWs directly to create, update or delete data in source table. To allow this we must use RULEs.
+
+Rules
+=====
+
+Allow the Postgres query tree to be altered with custom operations. VIEWs are RULEs.
+
+EXPLAIN VERBOSE
+	SELECT *
+	FROM holidays;
+
+- EXPLAIN VERBOSE can be used to view the execution plan for a RULE.
+
+CREATE RULE update_holidays AS ON UPDATE TO holidays DO INSTEAD
+	UPDATE events
+	SET title = NEW.name,
+	    starts = NEW.date,
+	    color = NEW.color
+	WHERE title = OLD.name;
+
+- Capture UPDATEs to holidays and instead runs the UPDATE on events.
+- NEW is a default variable that contains the incoming UPDATE values
+- OLD contains the existing values, the ones we query for in WHERE
+
+UPDATE holidays
+SET color = '{"pink", "white"}'
+WHERE name = 'Valentines Day';
+
+- can now UPDATE on holidays

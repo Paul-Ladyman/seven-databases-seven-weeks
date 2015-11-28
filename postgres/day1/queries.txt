@@ -7,7 +7,7 @@ CREATE TABLE countries (
 );
 
 - Define columns to create table
-- Column definitions made of <column-name>, <data-type>, <contraints>
+- Column definitions made of <column-name>, <data-type>, <constraints>
 
 CREATE TABLE cities (
 	name text NOT NULL,

@@ -23,6 +23,36 @@ CREATE INDEX movies_actors_movie_id ON movies_actors (movie_id);
 CREATE INDEX movies_actors_actor_id ON movies_actors (actor_id);
 CREATE INDEX movies_genres_cube ON movies USING gist (genre);
 
+- GIST index = Generalized Index Search Tree
+
+Explain
+=======
+
+EXPLAIN
+SELECT name
+FROM actors
+WHERE name = 'Bruce Willis';
+
+"Seq Scan on actors  (cost=0.00..93.33 rows=1 width=14)"
+"  Filter: (name = 'Bruce Willis'::text)"
+
+- EXPLAIN shows how queries are planned
+- "Seq Scan on <table>" is usually bad because it means the entire table must
+be read eg. every row.
+- Can be used to analyse correct use of indexes
+
+CREATE INDEX actors_names_index ON actors (name);
+
+EXPLAIN
+SELECT name
+FROM actors
+WHERE name = 'Bruce Willis';
+
+"Index Only Scan using actors_names_index on actors  (cost=0.28..8.30 rows=1 width=14)"
+"  Index Cond: (name = 'Bruce Willis'::text)"
+
+- Now we see only the index is being scanned, not the entire table
+
 Fuzzy Searching
 ==============
 
@@ -40,3 +70,41 @@ CREATE INDEX movies_title_pattern ON movies (lower(title) text_pattern_ops);
 
 - Can create indexes to speed up fuzzy searching. Notice we're creating an index
 on the lower-cased title to correspond with our searches.
+
+SELECT movie_id, title FROM movies
+WHERE levenshtein(lower(title), lower('a hard day night')) <= 3;
+
+- levenshtein algorithm returns the distance away one string is from the other
+in terms of character changes required to arrive at the second string.
+- Converting to lower case helps normalize distances since changes in case
+count as a step
+
+SELECT title
+FROM movies
+WHERE title % 'Avatre';
+
+- % trigram operator allows searches based on trigram matching - trigram
+algorithm breaks a string into a series of 3-char substrings, the second string
+with the most similar set of substrings matches.
+
+SELECT title
+FROM movies
+WHERE title @@ 'night & day'
+
+- @@ full-text operator allows natural language searches.
+- ignores "stop words" (a, and, the etc)
+
+SELECT title
+FROM movies NATURAL JOIN movies_actors NATURAL JOIN actors
+WHERE metaphone(name, 6) = metaphone('Benn Aflek', 6);
+
+- metaphone analysis compares strings based on a "sounds like" operation
+- other operators aren't really good at this
+
+SELECT name
+FROM actors
+WHERE metaphone(name, 8) % metaphone('J. Roberts', 8)
+ORDER BY levenshtein(lower('J. Roberts'), lower(name));
+
+- String searches can be combined to be more powerful
+- the above means "Get me the names that sound most like 'J. Roberts', in order."

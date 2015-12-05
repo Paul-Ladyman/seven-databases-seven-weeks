@@ -1,0 +1,205 @@
+Basic Commands
+==============
+
+show dbs
+show collections
+
+- A mongo instance/cluster is made up of databases (dbs) which contain collections
+
+db.towns.insert({
+  name: "New York",
+  population: 22200000,
+  famous_for: ["statue of liberty", "food"]
+})
+
+- db = database
+- towns = collection to be created or updated
+- Can insert JSON documents using Javascript syntax (no quotes for keys). Nested to any depth
+- Databases are not properly created until some data is inserted into a collection
+
+db.towns.find()
+
+- inspect a collection
+
+> typeof db
+object
+> typeof db.towns
+object
+> typeof db.towns.insert
+function
+
+- Mongo commands are themselves Javascript entities.
+
+function insertCity(
+  name, population, last_census,
+  famous_for, mayor_info
+) {
+  db.towns.insert({
+    name:name,
+    population:population,
+    last_census: ISODate(last_census),
+    famous_for:famous_for,
+    mayor : mayor_info
+  });
+}
+
+insertCity("Punxsutawney", 6200, '2008-01-31', ["phil the groundhog"], {name: "Jim Wehrle"})
+insertCity("London", 1000000, '2008-01-31', ["Big Ben"], {name: "Boris Johnson", party:"Tories"})
+
+- Can use this to create custom Javascript functions
+- Notice the documents being added to the towns collection do not have a standard format
+
+Read Queries
+============
+
+db.towns.find({name: "New York"}, {population: 1})
+
+- Find based on document properties
+- Second argument defines which fields should be returned (using 1 or true) or not returned
+(using 0 or false)
+
+db.towns.find(
+  {name: /^P/, population: {$lt: 10000}},
+  {name: 1, population: 1}
+)
+
+- Regex matching following perl regex (PCRE)
+- Conditional operator $lt (less than). Conditional operators take the form {$op: value}
+
+var population_range = {}
+population_range['$lt'] = 2000000
+population_range['$gt'] = 10000
+db.towns.find(
+  {population: population_range},
+  {name: 1, population: 1}
+)
+
+- Use Javascript language to construct query operators
+
+db.towns.find(
+  {last_census: {$lte: ISODate('2008-31-01')}}
+)
+
+- Conditional operator with date range
+
+Querying Nested Data
+===================
+
+db.towns.find(
+  {famous_for: 'food'},
+  {_id: 0, name: 1, famous_for: 1}
+)
+
+- Query for presence a single value within an array (famous_for)
+
+db.towns.find(
+  {famous_for: /statue/},
+  {_id: 0, name: 1, famous_for: 1}
+)
+
+- Query for presence of single partial value within an array
+
+db.towns.find(
+  {famous_for: {$all: [/statue/, 'food']}},
+  {_id: 0, name: 1, famous_for: 1}
+)
+
+- Query for presence of entire array with mixed value matchers
+
+db.towns.find(
+  {famous_for: {$nin: ['food']}},
+  {_id: 0, name: 1, famous_for: 1}
+)
+
+- Query for lack of value/s
+
+db.towns.find(
+  {'mayor.party': 'Tories'},
+  {_id: 0, name: 1, mayor: 1}
+)
+
+- Digging down into nested objects (mayor -> party)
+
+db.towns.find(
+  {'mayor.party': {$exists: false}},
+  {_id: 0, name: 1, mayor: 1}
+)
+
+- Query for lack of particular key
+
+db.countries.insert({
+  _id: 'us',
+  name: 'United States',
+  exports: {
+    foods: [
+      {name: 'bacon', tasty: true},
+      {name: 'burgers'}
+    ]
+  }
+})
+db.countries.insert({
+  _id: 'ca',
+  name: 'Canada',
+  exports: {
+    foods: [
+      {name: 'bacon', tasty: false},
+      {name: 'syrup', tasty: true}
+    ]
+  }
+})
+db.countries.insert({
+  _id: 'mx',
+  name: 'Mexico',
+  exports: {
+    foods: [
+      {name: 'salsa', tasty: true, condiment: true}
+    ]
+  }
+})
+
+- Can override _id to be any string
+- Can't insert an array, must be an object
+
+db.countries.find(
+  {
+    'exports.foods': {
+      $elemMatch: {
+        name: 'bacon',
+        tasty: true
+      }
+    }
+  },
+  {_id: 0, name: 1}
+)
+
+- $elemMatch operator means object must match each criteria to be included in the results.
+
+db.countries.find(
+  {
+    'exports.foods': {
+      $elemMatch: {
+        tasty: true,
+        condiment: {$exists: true}
+      }
+    }
+  },
+  {_id: 0, name: 1}
+)
+
+- Can combine other advanced operators with $elemMatch
+
+Boolean Operators
+=================
+
+db.countries.find(
+  {
+    $or: [
+      {_id: 'mx'},
+      {name: 'United States'}
+    ]
+  },
+  {_id: 0, name: 1}
+)
+
+- OR matcher. Countries with _id: 'mx' OR name: 'United States'.
+There are many boolean operators.

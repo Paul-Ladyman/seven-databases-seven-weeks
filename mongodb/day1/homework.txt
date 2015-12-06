@@ -1,0 +1,79 @@
+1
+==
+
+var helloWorld = {hello:'world'}
+print(tojson(helloWorld))
+OR printjson(helloWorld])
+
+db.towns.find().pretty()
+
+- Call pretty() on the result of a find query to have it printed out in nicely formatted
+JSON!
+
+2
+==
+
+db.towns.find({
+  name: {
+    $regex: /new/,
+    $options: '<i>'
+  }
+})
+
+3
+==
+
+db.towns.find({
+  $or: [
+    {name: /e/, famous_for: 'food'},
+    {name: /e/, famous_for: 'beer'}
+  ]
+})
+
+db.towns.find({
+  name: /e/,
+  $or: [
+    {famous_for: 'food'},
+    {famous_for: 'beer'}
+  ]
+})
+
+4
+==
+
+use blogger
+db.articles.insert({
+  author_name: 'Paul',
+  email: 'we@something.com',
+  created: ISODate('2015-12-06'),
+  body: 'something really insightful'
+})
+
+5
+==
+
+db.articles.update(
+  {_id: ObjectId('56645a879b4d6ce1b4d2da8e')},
+  {
+    $set: {
+      comments: [
+        {author: 'Some Guy', text: 'super awesome article'}
+      ]
+    }
+  }
+)
+
+6
+==
+
+query.txt:
+  db = db.getSiblingDB('blogger');
+  db.articles.find().forEach(printjson);
+
+mongo < query.txt
+OR load(pwd() + '/query.js')
+
+- This is native Javascript so Mongo-specific commands things like `use <db>` are not available
+Have to use JS alternatives listed in docs
+- find() does not return raw results it returns a cursor to be iterated over. Mongo shell does this
+automatically but in an external JS file this needs to be done manually as above

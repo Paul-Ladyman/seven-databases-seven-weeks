@@ -203,3 +203,96 @@ db.countries.find(
 
 - OR matcher. Countries with _id: 'mx' OR name: 'United States'.
 There are many boolean operators.
+
+Updates
+=======
+
+db.towns.update(
+  { name: 'New York' },
+  { $set : { state: 'NY' } }
+)
+
+- First argument is a criteria query like for find()
+- Second is a modifier operation describing what to change about the matched document
+- Could also be an entirely new document to replace the existing one with
+
+db.towns.update(
+  { name: 'London' },
+  { $inc : { population: 2000000 } }
+)
+
+- Other modifier operations available such as $inc, to increment an integer value
+
+References
+==========
+
+db.towns.update(
+  {name: 'New York'},
+  {$set: {country: {$ref: 'countries', $id: 'us'}}}
+)
+
+- Can references other documents in different collections if necessary.
+
+> db.towns.find()
+{ "_id" : ObjectId("566309d18adfd4a864515c37"), "name" : "New York", "population" : 22200000, "famous_for" : [ "statue of liberty", "food" ], "state" : "NY", "country" : DBRef("countries", "us") }
+
+- Results in a DBRef object
+- Docs say that this is used to provide a common interface for referring to other documents and other
+collections. Could also just manually include a reference to another document's _id
+- Docs recommend to use manual references unless there's a specific reason to use DBRef
+
+var newYork = db.towns.findOne({name: 'New York'})
+db.countries.findOne({_id: newYork.country.$id})
+
+- Can then use this reference to lookup
+- Notice that a second query has to be performed, joins are not available in MongoDB.
+This is because of its distributed nature!
+- If this is undesirable then denormalizing data is common practice for NoSQL stores
+- Another example of querying using Javascript language constructs
+
+db[newYork.country.$ref].findOne({_id: newYork.country.$id})
+
+- Could rewrite the above to dynamically lookup the referenced collection as well as the document id.
+- db is an object containing collections!
+
+Deleting
+========
+
+var bad_bacon = {
+  'exports.foods': {
+    $elemMatch: {
+      name: 'bacon',
+      tasty: false
+    }
+  }
+}
+db.countries.find(bad_bacon)
+
+db.countries.remove(bad_bacon)
+
+- remove function takes same kind of query object as find and update.
+
+Querying with Code
+==================
+
+db.towns.find(function () {
+  return this.population > 6000 && this.population < 600000
+})
+
+- MongoDB can apply Javascript functions to queries.
+- Iterates through every document in towns collection and applies function. this refers to current
+document
+- function returns a boolean for a match
+- Relatively slow process and cannot be indexed or optimised
+
+db.towns.find('this.population > 6000 && this.population < 600000')
+
+- shorthand available for simple boolean operations
+
+db.towns.find({
+  $where: 'this.population > 6000 && this.population < 600000',
+  famous_for: /groundhog/
+})
+
+- Can combine custom query functions with other standard criteria using the $where operator
+- Works for both shorthand and full Javascript function syntax

@@ -1,0 +1,149 @@
+Indexes
+=======
+
+Indexes are pointers to database values worked out in advance. When querying against an index,
+instead of doing a full collection scan, we're able to simply walk through the pointers to find
+the answer. Algorithmically this is much more performant.
+
+db.system.indexes.find()
+
+- Mongo automatically indexes on _id
+- Each db has a system.indexes collection which can be queried like any other
+
+db.phones.find({display: "+1 800-5650001"}).explain(true)
+
+- The explain function will provide details on how a query was executed. The argument
+is a boolean for verbose mode. Setting it to true will show how long the query took
+to run.
+
+db.phones.ensureIndex(
+  {display: 1},
+  {unique: true, dropDups: true}
+)
+
+- Create indexes with ensureIndex function
+- First argument is fields to be indexed, second is type of index to create
+- Using explain before and after should show a dramatic decrease in query time
+- It show also show "docsExamined" goes from a high number to 0 since the query no
+longer has to inspect every document to find the answer. It uses the index instead.
+
+db.setProfilingLevel(2)
+db.system.profile.find()
+
+- Rather than using explain to examine queries in an adhoc fashion, the same information
+can be stored for all queries by setting the profiling level of the database.
+- Query information is stored in a system.profile collection which again can be examined
+like any other.
+
+db.phones.ensureIndex({'components.area': 1}, {background: 1} )
+
+- Indexes can be created on nested fields
+- In production indexes should be created in the background
+
+Aggregations
+===========
+
+db.phones.count({'components.number': {$gt: 5599999}})
+
+- count is the most basic aggregator
+
+db.phones.distinct('components.number', {'components.number': {$lt: 5550005}})
+[ 5550000, 5550001, 5550002, 5550003, 5550004 ]
+
+- distinct returns an array of distinct values.
+- first argument is value to look for (can be nested), second argument is a filter
+- Notice the function does not return the full document. This is generally true of
+aggregator functions
+
+db.phones.group({
+  initial: {count: 0},
+  reduce: function(phone, output) {output.count++;},
+  cond: {'components.number': {$gt: 5599999}},
+  key: {'components.area': true}
+})
+
+- group function returns an array of objects where each object is a group organised
+around some field.
+- initial is an object contain fields that will be set in the output
+- reduce is a function that operates on the output for each document examined
+- cond allows the results to be filtered by some condition
+- key sets how the results will be grouped
+
+There are some restrictions on the use of group:
+  - the result set of group is limited to 20000 unique groupings
+  - group cannot be used in a sharded database environment
+  - In the above situations, Mongo's mapreduce feature should be used instead
+
+Server-side code
+================
+
+db.system.js.save({
+  _id: 'getLast',
+  value: function(collection) {
+    return collection.find().sort({'_id':1}).limit(1)[0];
+  }
+})
+
+- Javascript functions that perform queries can be saved in a system.js collection
+- _id is the name of the function and value is the function itself
+- This is similar to PostgreSQL's stored procedures.
+
+db.system.js.findOne({_id: 'getLast'}).value(db.phones)
+
+- we can then make use of the function on the client
+
+db.eval('getLast(db.phones)')
+
+- using eval we can perform functions directly on the server
+
+MapReduce
+=========
+
+Normal aggregation functions do not scale well to very large sets of data and cannot be used
+in sharded environments. Mapreduce operations address these issues. Mapreduce passes the algorithm
+to run to each server in a cluster, which pass back a reduced result which can be easily aggregated
+with results from the other servers.
+
+The map stage runs the query itself and maps it into a form useful to the reduce stage. The reduce
+stage performs some kind of aggregation on this result. The reduce results of each server are then
+reduced again by the client according to the same aggregation. Thus the results of many servers have
+been aggregated into a single result for the entire database.
+
+map = function() {
+  var digits = distinctDigits(this);
+  emit({digits : digits, country : this.components.country}, {count : 1});
+}
+
+- map selects distinctDigits from phone numbers (this is a stored procedure set up earlier)
+- then uses emit function to define a key and value, which can themselves be objects, to be
+passed to reduce.
+
+reduce = function(key, values) {
+  var total = 0;
+  for(var i=0; i<values.length; i++) {
+    total += values[i].count;
+  }
+  return { count : total };
+}
+
+- reduce accepts a key and a list of values emitted to that key. We then reduce this data by simply
+counting the number of values for the key. In this we we have counted the number of phone numbers
+with the same digits for each country.
+- Note we return the same format object as the value from the map function. This is because reduce functions
+must accept values from both map and other reduce functions (remember the final reduce performed on all
+server results.) Keeping the format the same makes this easier.
+
+results = db.runCommand({
+  mapReduce: 'phones',
+  map: map,
+  reduce: reduce,
+  out: 'phones.report'
+})
+
+- We then perform the operation as such.
+- mapReduce defines the collection to perform the operation on. Map and reduce define the respective
+functions to use at each stage. Out specifies the name of a new collection to output the results to.
+
+db.phones.report.find({'_id.country': 8})
+
+- since we output to a collection we can query the results in the usual way

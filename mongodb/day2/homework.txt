@@ -1,0 +1,15 @@
+1
+==
+
+results = db.runCommand({
+  mapReduce: 'phones',
+  map: map,
+  reduce: reduce,
+  out: 'phones.report',
+  finalize: function(key, reducedValue) {
+    return {total: reducedValue.count};
+  }
+})
+
+- Finalize is a function run at the very end of the mapreduce operation allowing a final
+map or aggregation to be performed before the results are returned to the client.

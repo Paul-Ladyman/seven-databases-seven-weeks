@@ -1,0 +1,47 @@
+2
+==
+
+mkdir mongo1 mongo2 mongo3 mongo4 mongo5 mongo6 mongoconfig
+
+*Replica Set 1*
+
+mongod --replSet book --dbpath ./mongo1 --port 27011 --rest
+mongod --replSet book --dbpath ./mongo2 --port 27012 --rest
+mongod --replSet book --dbpath ./mongo3 --port 27013 --rest
+
+mongo localhost:27011
+rs.initiate({
+  _id: 'book',
+  members: [
+    {_id: 1, host: 'localhost:27011'},
+    {_id: 2, host: 'localhost:27012'},
+    {_id: 3, host: 'localhost:27013'}
+  ]
+})
+
+*Replica Set 2*
+
+mongod --replSet book2 --dbpath ./mongo4 --port 27014 --rest
+mongod --replSet book2 --dbpath ./mongo5 --port 27015 --rest
+mongod --replSet book2 --dbpath ./mongo6 --port 27016 --rest
+
+mongo localhost:27014
+rs.initiate({
+  _id: 'book2',
+  members: [
+    {_id: 1, host: 'localhost:27014'},
+    {_id: 2, host: 'localhost:27015'},
+    {_id: 3, host: 'localhost:27016'}
+  ]
+})
+
+*Sharded server*
+
+mongod --configsvr --dbpath ./mongoconfig --port 27017
+mongos --configdb localhost:27017 --chunkSize 1 --port 27020
+
+mongo localhost:27020/admin
+mongos> db.runCommand({addshard: 'book/localhost:27011,localhost:27012,localhost:27013'})
+{ "shardAdded" : "shard0000", "ok" : 1 }
+mongos> db.runCommand({addshard: 'book2/localhost:27014,localhost:27015,localhost:27016'})
+{ "shardAdded" : "shard0001", "ok" : 1 }

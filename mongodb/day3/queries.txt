@@ -1,0 +1,59 @@
+Replica Sets
+============
+
+mongod --replSet book --dbpath ./mongo1 --port 27011 --rest
+
+> rs.status()
+{
+	"info" : "run rs.initiate(...) if not yet done for the set",
+	"ok" : 0,
+	"errmsg" : "no replset config has been received",
+	"code" : 94
+}
+
+rs.initiate({
+  _id: 'book',
+  members: [
+    {_id: 1, host: 'localhost:27011'},
+    {_id: 2, host: 'localhost:27012'},
+    {_id: 3, host: 'localhost:27013'}
+  ]
+})
+
+- Create a replica set with the rs command, providing the host names of each server
+in the set.
+- Using rs.status() we can observe that after a short time one node will be nominated
+PRIMARY and the other two SECONDARY.
+
+db.isMaster()
+
+- isMaster() gives some info on the cluster from the point of view of a particular
+node
+- it is not possible to write or read directly to a secondary node, all operations
+must be done through the primary
+
+Sharding
+========
+
+A sharded server environment in Mongodb is made up of a number of shards (regular
+mongod servers that the data will be split between,) a config server (again a mongod
+server that holds information about how the data is sharded,) and a mongos server
+acting as a single point of entry for clients.
+
+mongod --shardsvr --dbpath ./mongo4 --port 27014
+mongod --configsvr --dbpath ./mongo5 --port 27015
+mongos --configdb localhost:27015 --chunkSize 1 -- port 27020
+
+mongos> db.runCommand({addshard: 'localhost:27014'})
+{ "shardAdded" : "shard0000", "ok" : 1 }
+mongos> db.runCommand({addshard: 'localhost:27015'})
+{ "shardAdded" : "shard0001", "ok" : 1 }
+
+- Add two servers to be shards
+
+mongos> db.runCommand({enablesharding:'test'})
+{ "ok" : 1 }
+mongos> db.runCommand({shardcollection:"test.cities", key:{name: 1}})
+
+- define what database and collection will be sharded and what field the data
+will be sharded by

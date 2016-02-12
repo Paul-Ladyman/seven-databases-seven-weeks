@@ -38,6 +38,10 @@ QUEUED
 - when the exec command is received the queued commands are executed sequentially
 - both commands must succeed for the transaction to succeed. It is not possible for the transaction to only partially complete.
 
+type <key>
+
+- returns the type of a key. Useful since the right set of commands must be used according to what type of key it is.
+
 Complex Datatypes
 =================
 

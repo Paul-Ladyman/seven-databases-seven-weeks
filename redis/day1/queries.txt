@@ -1,0 +1,158 @@
+Basic Commands
+==============
+
+ping
+
+- Just ping a server
+
+set 7wks http://www.sevenweeks.org/
+get 7wks
+
+- simple set and get key value pair
+
+mset gog http://goodoldgames.com yah http://www.yahoo.com
+mget gog yah
+
+- set and get multiple key value pairs
+
+set count 2
+incr count
+get count
+
+- redis stores integers as well as strings
+- it provides simple operations for integers, such as increment
+- notice get actually returns the value as a string
+
+127.0.0.1:6379> multi
+OK
+127.0.0.1:6379> set prag http://pragprog.com
+QUEUED
+127.0.0.1:6379> incr count
+QUEUED
+127.0.0.1:6379> exec
+1) OK
+2) (integer) 4
+
+- redis supports transactions using the multi command.
+- commands made after multi are queued rather than executed.
+- when the exec command is received the queued commands are executed sequentially
+- both commands must succeed for the transaction to succeed. It is not possible for the transaction to only partially complete.
+
+Complex Datatypes
+=================
+
+As well as simple data types redis also supports lists, hashes, sets and sorted sets.
+
+Collections can contain up to 2^32 values per key!
+
+Collections in redis cannot nest, unlike document stores like Mongo and CouchDB.
+
+*hash*
+
+hmset user:paul name "Paul Ladyman" password s3cret
+hset user:paul age 26
+hvals user:paul
+hkeys user:paul
+hget user:paul age
+
+- hashmap operations begin with "h"
+- hset for example takes a redis key name (user:paul), a hashmap key name (name) and a value "Paul Ladyman"
+- Colons in redis key names are just used for logical key segments, they have no special meaning
+
+*list*
+
+lists are ordered and not unique.
+
+rpush paul:wishlist 7wks gog prog
+
+- an arbitrary number of values can be added to a list
+
+lrange paul:wishlist 0 -1
+
+- to retrieve a list a range of indexes must be specified. A negative position means number of steps from the end and "0 -1" will retrieve the whole list.
+
+rpush paul:wishlist github
+rpop paul:wishlist
+
+- a list can act as a stack (last in, first out) by pushing and popping from the same side (here, right and right)
+
+rpush paul:wishlist github
+lpop paul:wishlist
+
+- a list can act as a queue (first in, first out) by pushing and popping from opposite sites (here, right and left)
+
+lrem paul:wishlist bbc 0
+
+- arbitrary values can be removed from a list.
+- The integer specifies how many matching values to remove. 0 removes all matches.
+
+brpop comments 300
+
+- its possible to block waiting for a value to pop from a list for a certain time. Issue this command in a separate terminal window and lpush in another to the same key.
+
+*sets*
+
+Sets are unordered and unique.
+
+sadd news nytimes.com pragprog.com
+smembers news
+
+- add and retrieve members to/from a set
+
+sadd tech pragprog.com apple.com
+sinter news tech
+sdiff news tech
+sunion news tech
+
+- its possible to retrieve the intersection, diff and union of two sets
+
+sunionstore all news tech
+smembers all
+
+- the resulting sets can be stored under new keys
+
+*sorted sets*
+
+Sorted sets are ordered and unique. They are made up of key-value pairs where the key is a numeric score used to denote order.
+
+zadd visits 500 7wks 9 gog 9999 prag 10000 bbc
+
+- sorted set commands begin with "z"
+- like hash zadd takes the redis key, the set score (key) and the set value
+
+zrange visits 0 -1 withscores
+zrangebyscore visits 9 500 withscores
+zrangebyscore visits -inf inf withscores
+
+- zrange ranges by order
+- zrangebyscore ranges by score (-inf inf returns the whole range i.e. infinity)
+
+zadd votes 2 7wks 0 gog 9001 prog
+zunionstore importance 2 visits votes
+zrange importance 0 -1 withscores
+
+- sorted sets have similar union, diff and intersection commands to regular sets (but results must be stored!)
+- in the basic form, zunionstore takes a new redis key to store against, the number of redis keys that will be unioned, and the redis keys to union themselves.
+
+zunionstore importance:weighted 2 visits votes weights 1 2 aggregate sum
+zrange importance:weighted 0 -1 withscores
+
+- Its also optionally possible to specify a weighting for each key (a multiplier) and an aggregation operation (defaulting to SUM).
+
+Expiry
+======
+
+setex flix 10 netflix.com
+
+- a TTL can be set on a key when it is set (this can also be done in two separate commands, set <key> <value> and expire <key>)
+- The expireat command can be used to give a specific expiry time using a unix timestamp. It is possible to update the expireat value of a key - this is used in "most recently used (MRU)" caches to keep recently accessed keys by updating their TTL
+
+ttl flix
+persist flix
+
+- ttl returns the ttl value for a key and persist removes the expiry.
+
+Namespaces
+==========
+
+Redis supports database namespaces (just called databases). Select 1 switches to a new database index. The default index is 0. Namespaces are independent but keys can be moved from one to the other using the move command.

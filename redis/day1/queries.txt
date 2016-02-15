@@ -93,6 +93,7 @@ lrem paul:wishlist bbc 0
 brpop comments 300
 
 - its possible to block waiting for a value to pop from a list for a certain time. Issue this command in a separate terminal window and lpush in another to the same key.
+- note that popping removes the item from the list. If the last item is removed from a list, the list's key is removed from redis
 
 *sets*
 

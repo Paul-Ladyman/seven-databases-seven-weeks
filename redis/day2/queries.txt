@@ -1,0 +1,39 @@
+publish-subscribe
+=================
+
+subscribe comments
+publish comments
+
+- subscribe can be used to create multiple listeners on a queue list. Listeners will listen indefinitely for messages until an unsubscribe command is used.
+- publish pushes a message to all listeners.
+- the list's key will never actually exist in redis...its not possible to retrieve historic messages
+
+configuration
+=============
+
+info
+
+- info on uptime, memory used, durability, replication etc
+
+*Durability*
+
+Redis can store data in memory (not durable) or save it to disk. By default keys and values are occasionally saved to disk. A point-in-time snapshot of the data can be taken using the SAVE command (synchronous), or BGSAVE command (asynchronous).
+
+Snapshots can be scheduled using the "save" option in the redis.conf file. The option takes a number of seconds after which a save should be taken and a minimum number of keys that must have been changed since the last save.
+
+Redis is "eventually-durable" by default. It writes to disk intermittently, as above. It is possible to add an additional layer of security to compensate for crashes by enabling writing to an append-only file. This keeps tracks of all commands issued. If the server crashes in the middle of processing a command, the append-only file is worked through on start up in order to complete up to the last issued command. Commands are again appended to the file on a defined schedule - we must balance durability with performance since always appending to the file is slow. *REDIS TRADES DURABILITY FOR PERFORMANCE*
+
+*Security*
+
+Redis itself offers little in the way of request security - sensible firewalls/SSH security should be applied. It is possible however to obscure dangerous commands to mitigate against unauthorised access. Commands can be renamed to hard to guess strings - or renamed to an empty string and thus removed altogether.
+
+*Performace*
+
+redis-benchmark -n 100000 -c 50
+
+- Run Redis benchmark issuing 100000 commands using 50 parallel clients.
+- Gives performance statistics of many redis commands, reads and writes
+
+*Replication*
+
+A redis server can be set up as a slave of another by using the slaveof <host> <port> option in redis.conf

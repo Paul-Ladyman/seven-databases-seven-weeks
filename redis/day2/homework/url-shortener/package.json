@@ -1,0 +1,16 @@
+{
+  "name": "url-shortener",
+  "version": "1.0.0",
+  "description": "Simple service to shorten URLs and redirect to full URLs. Backed by Redis.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.13.4",
+    "redis": "^2.4.2",
+    "shortid": "^2.2.4"
+  }
+}
